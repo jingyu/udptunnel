@@ -15,7 +15,7 @@ In source code directory, run:
 
 ##### Windows
 
-Open Visual Studio ¡°Native Tools Command Prompt¡±, go to source code directory,
+Open Visual Studio "Native Tools Command Prompt", go to source code directory,
 run:
 
 ```
