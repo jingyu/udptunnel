@@ -1,0 +1,46 @@
+CC      = cl.exe
+LD      = link.exe
+
+# Common options
+CFLAGS  = /nologo /c /GS /analyze- /W3 /Zc:wchar_t  /Zc:forScope /WX- /Gd \
+          /Oy- /EHsc /Y- /fp:precise /errorReport:prompt \
+          /GL /Zi /Gy /O2 /MD /Oi /sdl /Gm-
+          
+CDEFS   = /D WIN32 /D _MBCS -D_CRT_SECURE_NO_WARNINGS /D NDEBUG
+
+INCLUDES = -Iwindows
+
+LDFLAGS = /NOLOGO /MACHINE:X86 /NXCOMPAT /ERRORREPORT:PROMPT /LTCG \
+          /DYNAMICBASE /OPT:ICF /OPT:REF /INCREMENTAL:NO /SAFESEH
+          
+LIBS    = Ws2_32.lib
+
+OBJS = hashtable.o log.o socket.o message.o channel.o tunnel.o udptunnel.o \
+       windows/getopt_long.o windows/gettimeofday.o
+
+TEST_SRCS = socket.o tcptest.o
+
+all: udptunnel.exe tcptest.exe
+
+udptunnel.exe: $(OBJS)
+	@echo Linking $(@F)...
+	@$(LD) $(LDFLAGS) $(OBJS) $(LIBS) /OUT:$@ /SUBSYSTEM:CONSOLE
+
+
+tcptest.exe: $(TEST_OBJS)
+	@echo Linking $(@F)...
+	@$(LD) $(LDFLAGS) $(OBJS) $(LIBS) /OUT:$@ /SUBSYSTEM:CONSOLE
+
+clean:
+	del *.o
+    del windows\*.o
+	del *.exe
+    del *.pdb
+
+.c.o:
+    @$(CC) $(CFLAGS) $(CDEFS) $(INCLUDES) /Fo$@ $<
+    
+.c.o:
+    @$(CC) $(CFLAGS) $(CDEFS) $(INCLUDES) /Fo$@ $<
+
+
