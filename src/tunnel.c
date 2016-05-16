@@ -620,6 +620,7 @@ int tunnel_run(Tunnel *t)
         if (t->mode == TUNNEL_MODE_CLIENT) {
             if (nfds > 0 && FD_ISSET(t->tcp_svr_sock, &fds)) {
                 SOCKET s;
+                fromlen = sizeof(from);
 
                 s = accept(t->tcp_svr_sock, (struct sockaddr *)&from, &fromlen);
                 if (s != INVALID_SOCKET) {
