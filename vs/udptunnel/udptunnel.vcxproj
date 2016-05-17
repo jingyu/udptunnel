@@ -156,6 +156,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\acl.c" />
     <ClCompile Include="..\..\src\channel.c" />
     <ClCompile Include="..\..\src\hashtable.c" />
     <ClCompile Include="..\..\src\log.c" />
@@ -167,6 +168,7 @@
     <ClCompile Include="..\..\src\windows\gettimeofday.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\acl.h" />
     <ClInclude Include="..\..\src\channel.h" />
     <ClInclude Include="..\..\src\config.h" />
     <ClInclude Include="..\..\src\hashtable.h" />
