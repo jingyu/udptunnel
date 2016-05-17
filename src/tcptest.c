@@ -1,3 +1,21 @@
+/*
+ * udptunnel : Lightweight TCP over UDP Tunneling
+ *
+ * Copyright (C) 2014 Jingyu jingyu.niu@gmail.com
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,6 +51,8 @@ static int tcp_server(const char *host, const char *port,
         socket_close(s);
         return rc;
     }
+
+    printf("TCP server started on %s ...", socket_local_name(s));
 
     c = accept(s, NULL, NULL);
     if (c == INVALID_SOCKET) {
@@ -122,13 +142,28 @@ static int tcp_client(const char *server, const char *port,
 
 static void usage()
 {
-    printf("Usage: tcptest -s|-c host port [size] [count] [interval]\n"
+    printf("Usage: tcptest -s|-c host:port [size] [count] [interval]\n"
             "         size        Packet size to send or receive.\n"
             "         count       Total packet count to send or receive.\n"
             "                     0 for infinity.\n"
             "         interval    Send or receive interval, in milliseconds.\n"
             "\n");
     exit(-1);
+}
+
+static void parse_addr(char *addr, char **host, char **port)
+{
+    char *p;
+
+    p = strchr(addr, ':');
+    if (p) {
+        *p++ = 0;
+        *host = *addr ? addr : NULL;
+        *port = *p ? p : NULL;
+    } else {
+        *host = NULL;
+        *port = addr;
+    }
 }
 
 int main(int argc, char *argv[])
@@ -148,7 +183,7 @@ int main(int argc, char *argv[])
     }
 #endif
 
-    if (argc < 4)
+    if (argc < 3)
         usage();
 
     if (strcmp(argv[1], "-s") == 0)
@@ -158,17 +193,16 @@ int main(int argc, char *argv[])
     else
         usage();
 
-    host = argv[2];
-    port = argv[3];
+    parse_addr(argv[2], &host, &port);
+
+    if (argc >=4)
+        size = atoi(argv[3]);
 
     if (argc >=5)
-        size = atoi(argv[4]);
+        count = atoi(argv[4]);
 
     if (argc >=6)
-        count = atoi(argv[5]);
-
-    if (argc >=7)
-        interval = atoi(argv[6]);
+        interval = atoi(argv[5]);
 
     if (mode == 's')
         tcp_server(host, port, size, count, interval);

@@ -27,6 +27,7 @@
 #include "channel.h"
 #include "message.h"
 #include "log.h"
+#include "acl.h"
 
 #include "tunnel_i.h"
 #include "tunnel.h"
@@ -51,6 +52,8 @@ static int tunnel_say_hello(Tunnel *t, const char *host, const char *port)
 
     fd_set fds;
 
+    size_t len;
+
     char msg_buf[sizeof(Message) + TUNNEL_MAX_DATA_LEN - 1];
     Message *msg = (Message *)msg_buf;
 
@@ -70,9 +73,10 @@ static int tunnel_say_hello(Tunnel *t, const char *host, const char *port)
 
             sn = t->sn++;
 
+            len = sprintf(msg->data, "%s:%s:%s", TUNNEL_DEFAULT_PROFILE, 
+                          t->remote_host, t->remote_port);
             rc = message_send(t->udp_svr_sock, MSG_TUNNEL_HELLO, 0, sn, 
-                              TUNNEL_DEFAULT_PROFILE, 
-                              strlen(TUNNEL_DEFAULT_PROFILE) + 1, 
+                              msg->data, len + 1,
                               p->ai_addr, p->ai_addrlen);
             if (rc <= 0) {
                 log_warning("Send hello to %s error:%d.", 
@@ -128,20 +132,27 @@ static int tunnel_hello_ack(Tunnel *t, uint16_t sn, void *data, size_t datalen,
                             const struct sockaddr *from, socklen_t fromlen)
 {
     int rc;
-    char *profile = (char *)data;
-    size_t len;
+    char *profile, *host, *port;
+    char *tokc = NULL;
 
-    /* Data format is: profile\0 */
+    /* Data format is: profile:host:port\0 */
 
-    if ((len = strnlen(profile, datalen)) == datalen) {
+    if (strnlen((char *)data, datalen) == datalen) {
         /* no null terminal */
         log_warning("Hello from %s denied, invalid request.",
                     socket_addr_name(from));
         return -1;
     }
 
-    if (len > TUNNEL_MAX_PROFILE_LEN) {
-        log_warning("Hello from %s denied, invalid profile.",
+    profile = strtok_r((char *)data, ":", &tokc);
+    host = strtok_r(NULL, ":", &tokc);
+    port = strtok_r(NULL, ":", &tokc);
+
+    if (!profile || !host || !port ||
+        strlen(profile) > TUNNEL_MAX_PROFILE_LEN ||
+        strlen(host) > TUNNEL_MAX_HOST_LEN ||
+        strlen(port) > TUNNEL_MAX_PORT_LEN) {
+        log_warning("Hello from %s denied, invalid request.",
                     socket_addr_name(from));
         return -1;
     }
@@ -149,6 +160,13 @@ static int tunnel_hello_ack(Tunnel *t, uint16_t sn, void *data, size_t datalen,
     if (strcmp(profile, TUNNEL_DEFAULT_PROFILE) != 0) {
         log_warning("Hello from %s denied, unknown profile.",
                     socket_addr_name(from));
+        return -1;
+    }
+
+    if (acl_check(&t->acl, from, host, port)) {
+        log_warning("Hello from %s denied, from %s to %s:%s not allowed",
+                    socket_addr_name(from), socket_addr_name(from),
+                    host, port);
         return -1;
     }
 
@@ -165,7 +183,7 @@ static int tunnel_hello_ack(Tunnel *t, uint16_t sn, void *data, size_t datalen,
     return 0;
 }
 
-Tunnel *tunnel_create_server(const char *host, const char *port)
+Tunnel *tunnel_create_server(const char *host, const char *port, char *acl)
 {
     if (port == NULL || *port == 0)
         return NULL;
@@ -175,7 +193,13 @@ Tunnel *tunnel_create_server(const char *host, const char *port)
         log_error("Create tunnel, out of memory.");
         return NULL;
     }
-    
+
+    if (acl_init(acl, &t->acl) < 0) {
+        log_error("Create tunnel, invalid ACL.");
+        free(t);
+        return NULL;
+    }
+
     t->udp_svr_sock = socket_create(AF_INET, SOCK_DGRAM, host, port);
     if (t->udp_svr_sock == INVALID_SOCKET) {
         log_error("Create socket and bind to %s:%s error:%d.",
@@ -251,6 +275,9 @@ Tunnel *tunnel_create_client(const char *host, const char *port,
 
     t->mode = TUNNEL_MODE_CLIENT;
 
+    strcpy(t->remote_host, remote_host);
+    strcpy(t->remote_port, remote_port);
+
     if (tunnel_say_hello(t, tunnel_host, tunnel_port) < 0) {
         socket_close(t->udp_svr_sock);
         socket_close(t->tcp_svr_sock);
@@ -258,9 +285,6 @@ Tunnel *tunnel_create_client(const char *host, const char *port,
         free(t);
         return NULL;
     }
-
-    strcpy(t->remote_host, remote_host);
-    strcpy(t->remote_port, remote_port);
 
     FD_ZERO(&t->fds);
     FD_SET(t->tcp_svr_sock, &t->fds);
@@ -339,6 +363,18 @@ static int tunnel_server_new_channel(Tunnel *t, uint16_t sn,
         strlen(port) > TUNNEL_MAX_PORT_LEN) {
         log_warning("New channel request from %s denied, invalid request.",
                     socket_addr_name(from));
+        return -1;
+    }
+
+    if (strcmp(profile, TUNNEL_DEFAULT_PROFILE) != 0) {
+        log_warning("New channel request from %s denied, unknown profile.",
+                    socket_addr_name(from));
+        return -1;
+    }
+
+    if (acl_check(&t->acl, from, host, port)) {
+        log_warning("New channel request from %s to %s:%s denied",
+                    socket_addr_name(from), host, port);
         return -1;
     }
 
@@ -670,7 +706,8 @@ void tunnel_close(Tunnel *t)
 
 void tunnel_stop(Tunnel *t)
 {
-    t->stop = 1;
+    if (t)
+        t->stop = 1;
 }
 
 void tunnel_sockets_set(Tunnel *t, SOCKET sock)

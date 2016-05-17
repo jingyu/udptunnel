@@ -41,6 +41,8 @@ static char *tunnel_port;
 static char *remote_host;   /* remote address */
 static char *remote_port;
 
+static char *acl;
+
 #ifdef _DEBUG
 static int log_level = UDPTUNNEL_LOG_DEBUG;
 #else
@@ -51,13 +53,14 @@ static Tunnel *t;
 
 static void usage()
 {
-    printf("usage: udptunnel -s [host:]port [-a acl] ...\n");
+    printf("usage: udptunnel -s [host:]port [-a acl]|[-d acl] ...\n");
     printf("   or: udptunnel -c [host:]port -p host:port -t host:port\n");
     printf("\n"
            "  Server options:\n"
            "  -s    server mode. server host and port\n"
-           "  -a    access control list\n"
-           "        acl: [s=<src ip>,][d=<dst ip>,][dp=<dst port>,][a=allow|deny]\n"
+           "  -a    allowed source and dest\n"
+           "        src_ip,dest_ip,dest_port,allow|deny\n"
+           "        any ip is 0.0.0.0, any port is 0"
            "\n"
            "  Client options:\n"
            "  -c    client mode. local TCP server host and port\n"
@@ -111,6 +114,7 @@ static void parse_args(int argc, char *argv[])
             break;
 
         case 'a':
+            acl = optarg;
             break;
 
         case 'c':
@@ -200,7 +204,7 @@ int main(int argc, char *argv[])
     signal(SIGTERM, stop);
 
     if (mode == 's')
-        t = tunnel_create_server(host, port);
+        t = tunnel_create_server(host, port, acl);
     else
         t = tunnel_create_client(host, port, tunnel_host, tunnel_port,
                                  remote_host, remote_port);

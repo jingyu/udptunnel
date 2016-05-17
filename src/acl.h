@@ -16,35 +16,32 @@
  * limitations under the License.
  */
 
-#ifndef __TUNNEL_H__
-#define __TUNNEL_H__
+#ifndef __ACL_H__
+#define __ACL_H__
+
+#include <stdint.h>
+
+#include "socket.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Not include null terminal */
-#define TUNNEL_MAX_PROFILE_LEN          63
-#define TUNNEL_MAX_HOST_LEN             127
-#define TUNNEL_MAX_PORT_LEN             63
+typedef struct AccessControlList {
+    uint32_t src;
+    uint32_t dest;
+    uint16_t dest_port;
+    uint16_t deny;
+    uint32_t reserved;
+} AccessControlList;
 
-struct tunnel;
-typedef struct tunnel Tunnel;
+int acl_init(char *str, AccessControlList *acl);
 
-Tunnel *tunnel_create_server(const char *host, const char *port, char *acl);
-
-Tunnel *tunnel_create_client(const char *host, const char *port,
-                             const char *tunnel_host, char *tunnel_port,
-                             const char *remote_host, char *remote_port);
-
-void tunnel_close(Tunnel *t);
-
-int tunnel_run(Tunnel *t);
-
-void tunnel_stop(Tunnel *t);
+int acl_check(AccessControlList *acl, const struct sockaddr *src,
+              const char *dest_ip, const char *dest_port);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __TUNNEL_H__ */
+#endif /* __ACL_H__ */

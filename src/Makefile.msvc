@@ -15,8 +15,8 @@ LDFLAGS = /NOLOGO /MACHINE:X86 /NXCOMPAT /ERRORREPORT:PROMPT /LTCG \
           
 LIBS    = Ws2_32.lib
 
-OBJS = hashtable.o log.o socket.o message.o channel.o tunnel.o udptunnel.o \
-       windows/getopt_long.o windows/gettimeofday.o
+OBJS = hashtable.o log.o acl.o socket.o message.o channel.o tunnel.o \
+       udptunnel.o windows/getopt_long.o windows/gettimeofday.o
 
 TEST_SRCS = socket.o tcptest.o
 

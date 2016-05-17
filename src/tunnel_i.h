@@ -28,6 +28,7 @@
 
 #include "socket.h"
 #include "hashtable.h"
+#include "acl.h"
 
 #include "tunnel.h"
 
@@ -59,6 +60,8 @@ typedef struct tunnel {
     uint16_t cid;
 
     int stop;
+
+    AccessControlList acl;                      /* For server side only */
 
     Hashtable *channels;
 
